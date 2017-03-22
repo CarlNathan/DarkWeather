@@ -1,11 +1,17 @@
 package com.example.carludren.darkweather;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONException;
@@ -13,6 +19,8 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 
+import butterknife.BindView;
+import butterknife.ButterKnife;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -23,20 +31,41 @@ public class MainActivity extends AppCompatActivity {
     public static final String TAG = MainActivity.class.getSimpleName();
 
     private CurrentWeather mCurrentWeather;
+    @BindView(R.id.tempView) TextView mTemperatureLabel;
+    @BindView(R.id.dateView) TextView mDateLabel;
+    @BindView(R.id.humidityValueLabel) TextView mHumidityLabel;
+    @BindView(R.id.rainValueLabel) TextView mRainLabel;
+    @BindView(R.id.summaryLabel) TextView mSummaryLabel;
+    @BindView(R.id.iconImageVIew) ImageView mImageView;
+    @BindView(R.id.refreshButton) ImageView mRefreshButton;
+    @BindView(R.id.refreshSpinner) ProgressBar mRefreshSpinner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
 
+        mRefreshSpinner.setVisibility(View.INVISIBLE);
+
+        mRefreshButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fetchCurrentWeather(40.0493, -75.2771);
+            }
+        });
+
+        fetchCurrentWeather(40.0493, -75.2771);
+    }
+
+    private void fetchCurrentWeather(double latitude, double longitude) {
         String apiKey = "57be4ac5c8a4b592d4744d2b4d0f8f9b";
-        double latitude = 37.8267;
-        double longitude = -122.4233;
         String forecastUrl = "https://api.darksky.net/forecast/"+ apiKey + "/"
                 + latitude + "," + longitude;
 
 
         if (isNetworkAvailable()) {
+            showProgressBar();
             OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
                     .url(forecastUrl)
@@ -56,7 +85,20 @@ public class MainActivity extends AppCompatActivity {
                         Log.v(TAG, jsonData);
                         if (response.isSuccessful()) {
                             mCurrentWeather = getCurrentDetails(jsonData);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    hidProgressBar();
+                                    updateDisplay();
+                                }
+                            });
                         } else {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    hidProgressBar();
+                                }
+                            });
                             alertUser(getResources().getString(R.string.error_title),
                                     getResources().getString(R.string.error_message),
                                     getResources().getString(R.string.error_ok_button_text));
@@ -69,11 +111,37 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            Toast.makeText(this, R.string.network_unavailable_message, Toast.LENGTH_LONG).show();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    hidProgressBar();
+                }
+            });
             alertUser(getResources().getString(R.string.network_unavailable_title),
                     getResources().getString(R.string.network_unavailable_message),
                     getResources().getString(R.string.network_unavailable_ok_button_text));
         }
+    }
+
+    private void showProgressBar() {
+        mRefreshSpinner.animate();
+        mRefreshSpinner.setVisibility(View.VISIBLE);
+        mRefreshButton.setVisibility(View.INVISIBLE);
+    }
+
+    private void hidProgressBar() {
+        mRefreshSpinner.setVisibility(View.INVISIBLE);
+        mRefreshButton.setVisibility(View.VISIBLE);
+    }
+
+    private void updateDisplay() {
+        mTemperatureLabel.setText(String.valueOf(mCurrentWeather.getTemperature()));
+        mDateLabel.setText(String.valueOf(mCurrentWeather.getFormattedTime()));
+        mHumidityLabel.setText(mCurrentWeather.getHumidity() + "%");
+        mRainLabel.setText(mCurrentWeather.getPrecipChance() + "%");
+        mSummaryLabel.setText(String.valueOf(mCurrentWeather.getSummary()));
+        Drawable drawable = ContextCompat.getDrawable(this, mCurrentWeather.getIconId());
+        mImageView.setImageDrawable(drawable);
     }
 
     private CurrentWeather getCurrentDetails(String jsonData) throws JSONException {
@@ -88,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
         currentWeather.setPrecipChance(currently.getDouble("precipProbability"));
         currentWeather.setSummary(currently.getString("summary"));
         currentWeather.setIcon(currently.getString("icon"));
+        currentWeather.setTimeZone(forecast.getString("timezone"));
 
         return currentWeather;
     }
