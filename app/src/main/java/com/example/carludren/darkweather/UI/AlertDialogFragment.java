@@ -1,10 +1,12 @@
-package com.example.carludren.darkweather;
+package com.example.carludren.darkweather.UI;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.Context;
 import android.os.Bundle;
+
+import com.example.carludren.darkweather.R;
 
 /**
  * Created by carludren on 3/20/17.
